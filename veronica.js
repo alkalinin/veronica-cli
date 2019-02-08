@@ -1,9 +1,25 @@
 const program = require('commander');
 const fs = require('fs');
+const admin = require('firebase-admin');
+
+
+/**
+ * Firebase: initialize  admin API
+ */
+const secretKeys = require("../veronica-keys/veronica-roma-firebase-keys.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(secretKeys),
+  databaseURL: "https://veronica-roma.firebaseio.com"
+});
+
+const settings = {timestampsInSnapshots: true};
+admin.firestore().settings(settings);
+
 
 /**
  * CLI: Create Users
-*/ 
+ */
 program
   .command('create <entity>')
   .description('Create specified <entity> in firebase database')
@@ -15,7 +31,12 @@ program
     for (var i in users) {
       await createUser(users[i]);
     }
+    process.exit(0);
   });
+
+/**
+ * CLI: Process Errors
+ */
 
 program
   .command('*')
@@ -31,12 +52,59 @@ if (typeof cmdValue === 'undefined') {
   process.exit(1);
 }
 
-/** 
- * Firebase: Create User
-*/
+/**
+ * Firebase: create user
+ */
 
 async function createUser(user) {
-  console.log(user);
+  console.log('User: ' + user['email']);
+  var userRecord;
+  var errCode;
+
+  // Remove user record if user already exists
+  try {
+    userRecord = await admin.auth().getUserByEmail(user['email']);
+  } catch (err) {
+    errCode = err['code'];
+  }
+
+  if (errCode != 'auth/user-not-found') {
+    console.log('Warning: user already exists');
+    console.log(userRecord['uid']);
+    removeUser(userRecord);
+  }
+  console.log('');
+
+  // Create user
+  try {
+    userRecord = await admin.auth().createUser({
+      email: user['email'],
+      emailVerified: false,
+      password: user['password'],
+      displayName: user['displayName'],
+      disable: false
+    });
+  } catch (err) {
+    console.log(err);
+  }
+
+  console.log(userRecord);
+  // Create user role
+  var dataRecord = {
+    roles: user['roles']
+  };
+}
+
+/**
+ * Remove all records for the givem user
+ * @param {*} user
+ */
+async function removeUser(user) {
+  try {
+    await admin.auth().deleteUser(user['uid']);
+  } catch (err) {
+    console.log(err);
+  }
 }
 
 
