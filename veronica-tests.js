@@ -4,12 +4,12 @@ var config = require("./config");
 firebase.initializeApp(config);
 var db = firebase.firestore();
 
-var write = async () => {
+var createTestDocument = async () => {
   try {
     auth = await firebase.auth().signInAnonymously()
     console.log("User ID: "+ auth.user.uid);
     
-    docRef = await db.collection("users").add({
+    docRef = await db.collection("documents").add({
       first: "Ada",
       last: "Lovelace",
       born: 1815
@@ -23,8 +23,8 @@ var write = async () => {
   }
 };
 
-var read = async () => {
-  var usersRef = db.collection("users");
+var readTestDocument = async () => {
+  var usersRef = db.collection("documents");
   usersRef.get()
     .then(snapshot => {
       snapshot.forEach(doc => {
@@ -36,7 +36,5 @@ var read = async () => {
     })
 }
 
-write();
-// read();
-
-console.log('A');
+createTestDocument();
+//readTestDocument();
