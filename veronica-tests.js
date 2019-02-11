@@ -15,7 +15,7 @@ var createTestDocument = async () => {
     auth = await firebase.auth().signInAnonymously()
     console.log('User Id: ' + auth.user.uid);
     
-    docRef = await db.collection('users').add({
+    docRef = await db.collection('users').doc(auth.user.uid).set({
       answers: [0, 1, 2, 3, 4, 5]
     });
     console.log('Document Id: ' + docRef.id);
