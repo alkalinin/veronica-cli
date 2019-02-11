@@ -1,18 +1,21 @@
-var firebase = require("firebase");
-var config = require("./config");
+const firebase = require("firebase");
 
+const config = require("./config.json");
+
+/**
+ * Firebase: initialize user API
+ */
 firebase.initializeApp(config);
-var db = firebase.firestore();
+
+const db = firebase.firestore();
 
 var createTestDocument = async () => {
   try {
     auth = await firebase.auth().signInAnonymously()
     console.log("User ID: "+ auth.user.uid);
     
-    docRef = await db.collection("documents").add({
-      first: "Ada",
-      last: "Lovelace",
-      born: 1815
+    docRef = await db.collection("users").add({
+      answers: [0, 1, 2, 3, 4, 5]
     });
     console.log("Document ID: "+ docRef.id);
 
@@ -24,17 +27,17 @@ var createTestDocument = async () => {
 };
 
 var readTestDocument = async () => {
-  var usersRef = db.collection("documents");
+  var usersRef = db.collection("users");
   usersRef.get()
     .then(snapshot => {
       snapshot.forEach(doc => {
         console.log(doc.id, '=>', doc.data());
-      })
+      });
     })
     .catch(err => {
       console.log(error);
-    })
+    });
 }
 
 createTestDocument();
-//readTestDocument();
+readTestDocument();

@@ -2,21 +2,20 @@ const program = require('commander');
 const fs = require('fs');
 const admin = require('firebase-admin');
 
+const secretKeys = require("../veronica-keys/veronica-roma-firebase-keys.json");
+const config = require("./config.json");
+
+
 /**
  * Firebase: initialize admin API
  */
-const secretKeys = require("../veronica-keys/veronica-roma-firebase-keys.json");
-
 admin.initializeApp({
   credential: admin.credential.cert(secretKeys),
-  databaseURL: "https://veronica-roma.firebaseio.com"
+  databaseURL: config['databaseURL']
 });
 
 const settings = {timestampsInSnapshots: true};
 admin.firestore().settings(settings);
-
-
-
 
 /**
  * CLI: Create Users
