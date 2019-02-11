@@ -2,9 +2,8 @@ const program = require('commander');
 const fs = require('fs');
 const admin = require('firebase-admin');
 
-
 /**
- * Firebase: initialize  admin API
+ * Firebase: initialize admin API
  */
 const secretKeys = require("../veronica-keys/veronica-roma-firebase-keys.json");
 
@@ -17,6 +16,8 @@ const settings = {timestampsInSnapshots: true};
 admin.firestore().settings(settings);
 
 
+
+
 /**
  * CLI: Create Users
  */
@@ -24,7 +25,7 @@ program
   .command('create <entity>')
   .description('Create specified <entity> in firebase database')
   .action(async function(entity, args) {
-    cmdValue = entity;
+    hasCmd = true;
 
     var json = JSON.parse(fs.readFileSync('../veronica-keys/veronica-roma-firebase-users.json'))
     var users = json['users']
@@ -35,27 +36,30 @@ program
   });
 
 /**
- * CLI: Process Errors
+ * CLI: Clear all users and records from database
  */
-
 program
-  .command('*')
-  .action(function(env) {
-    cmdValue = env
-    console.log('Error: unknown command.');
+  .command('clear')
+  .description('Remove all users and records from database')
+  .action(async function(args) {
+    hasCmd = true;
+
+    await clear();
+    console.log('Done clear');
+    process.exit(0);
   });
 
+var hasCmd = false;
 program.parse(process.argv);
 
-if (typeof cmdValue === 'undefined') {
-  console.error('Error: no command given.');
+if (! hasCmd) {
+  console.error('ERROR: Invalid command or no command was given');
   process.exit(1);
 }
 
 /**
  * Firebase: create user
  */
-
 async function createUser(user) {
   console.log('User: ' + user['email']);
   var userRecord;
@@ -96,10 +100,9 @@ async function createUser(user) {
 }
 
 /**
- * Remove all records for the givem user
- * @param {*} user
+ * Remove all records for the given user
  */
-async function removeUser(user) {
+async function deleteUser(user) {
   try {
     await admin.auth().deleteUser(user['uid']);
   } catch (err) {
@@ -107,50 +110,41 @@ async function removeUser(user) {
   }
 }
 
+/**
+ * Firebase: cleare database
+ */
+async function clear() {
+  const usersPerPage = 25;
+  var nextPageToken;
+  var usersUids = [];
 
-// const admin = require('firebase-admin');
+  // get list of all users
+  try {
+    do {
+      result = await admin.auth().listUsers(usersPerPage, nextPageToken);
+      result.users.forEach(userRecord => {
+        usersUids.push(userRecord.uid)
+      });
+      nextPageToken = result.pageToken;
+    } while (nextPageToken);
+  } catch (err) {
+    console.log(err);
+  }
 
-// const secret_keys = require("../veronica-keys/veronica-roma-firebase-keys.json");
+  // remove users
+  const firebaseDelay = 200;
+  const pauseFor = (delay) => new Promise(resolve => setTimeout(resolve, delay));
 
-// const settings = {timestampsInSnapshots: true};
-
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-//   databaseURL: "https://veronica-roma.firebaseio.com"
-// });
-// admin.firestore().settings(settings);
-
-// var db = admin.firestore();
-
-// db.collection('users').get()
-//   .then((snapshot) => {
-//     snapshot.forEach((doc) => {
-//       console.log(doc.id, '=>', doc.data());
-//     });
-//   })
-//   .catch((err) => {
-//     console.log('Error getting documents', err);
-//   });
-
-
-// function listAllUsers(nextPageToken) {
-//   // List batch of users, 1000 at a time.
-//   admin.auth().listUsers(1000, nextPageToken)
-//     .then(function(listUsersResult) {
-//       listUsersResult.users.forEach(function(userRecord) {
-//         //console.log("user", userRecord.toJSON());
-//         console.log("user", userRecord.uid);
-//       });
-//       if (listUsersResult.pageToken) {
-//         // List next batch of users.
-//         listAllUsers(listUsersResult.pageToken)
-//       }
-//     })
-//     .catch(function(error) {
-//       console.log("Error listing users:", error);
-//     });
-// }
-//   // Start listing users from the beginning, 1000 at a time.
-// listAllUsers();
-
-// //process.exit(0);
+  for (let uid of usersUids) {
+    // var deleteUser = async (uid) => {
+    //   await pauseFor(firebaseDelay);
+    //   console.log(`User Id: ${uid}`);
+    // }
+    // await deleteUser(uid);
+    await (async () => {
+      await pauseFor(firebaseDelay);
+      await admin.auth().deleteUser(uid);
+      console.log(`User Id: ${uid}`);
+    })();
+  }
+}
