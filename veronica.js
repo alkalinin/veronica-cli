@@ -2,8 +2,8 @@ const program = require('commander');
 const fs = require('fs');
 const admin = require('firebase-admin');
 
-const secretKeys = require("../veronica-keys/veronica-roma-firebase-keys.json");
-const config = require("./config.json");
+const secretKeys = require('../veronica-keys/veronica-roma-firebase-keys.json');
+const config = require('./config.json');
 
 
 /**
@@ -114,36 +114,55 @@ async function deleteUser(user) {
  */
 async function clear() {
   const usersPerPage = 25;
-  var nextPageToken;
-  var usersUids = [];
+  const firebaseDelay = 200;
 
-  // get list of all users
+  var nextPageToken;
+  var usersIds = [];
+  var docsIds = [];
+
+  // delay function in order do not overload firebase quota
+  const pauseFor = (delay) => new Promise(resolve => setTimeout(resolve, delay));
+
   try {
+    // get list of all users
     do {
       result = await admin.auth().listUsers(usersPerPage, nextPageToken);
       result.users.forEach(userRecord => {
-        usersUids.push(userRecord.uid)
+        usersIds.push(userRecord.uid)
       });
       nextPageToken = result.pageToken;
     } while (nextPageToken);
+
+    // remove users
+    for (let userId of usersIds) {
+      // var deleteUser = async (userId) => {
+      //   await pauseFor(firebaseDelay);
+      //   console.log(`User Id: ${userId}`);
+      // }
+      // await deleteUser(userId);
+      await (async () => {
+        await pauseFor(firebaseDelay);
+        await admin.auth().deleteUser(userId);
+        console.log(`User Id: ${userId}`);
+      })();
+    }
+
+    // get list of all documents
+    var collectionRef = admin.firestore().collection('users');
+    snapshot = await collectionRef.get();
+    for (let doc of snapshot.docs) {
+      docsIds.push(doc.id);
+    }
+
+    // remove documents
+    for (let docId of docsIds) {
+      await (async () => {
+        await pauseFor(firebaseDelay);
+        await admin.firestore().collection('users').doc(docId).delete();
+        console.log(`Document Id: ${docId}`);
+      })();
+    }
   } catch (err) {
     console.log(err);
-  }
-
-  // remove users
-  const firebaseDelay = 200;
-  const pauseFor = (delay) => new Promise(resolve => setTimeout(resolve, delay));
-
-  for (let uid of usersUids) {
-    // var deleteUser = async (uid) => {
-    //   await pauseFor(firebaseDelay);
-    //   console.log(`User Id: ${uid}`);
-    // }
-    // await deleteUser(uid);
-    await (async () => {
-      await pauseFor(firebaseDelay);
-      await admin.auth().deleteUser(uid);
-      console.log(`User Id: ${uid}`);
-    })();
   }
 }

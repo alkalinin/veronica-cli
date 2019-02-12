@@ -31,8 +31,8 @@ var readTestDocument = async () => {
 
   console.log('User Id: ' + auth.user.uid);
   try {
-    var usersRef = db.collection('users');
-    snapshot = await usersRef.get();
+    var collectionRef = db.collection('users');
+    snapshot = await collectionRef.get();
     snapshot.forEach(doc => {
       console.log('Document Id: ' + doc.id);
     });
