@@ -5,7 +5,6 @@ const admin = require('firebase-admin');
 const secretKeys = require('../veronica-keys/veronica-roma-firebase-keys.json');
 const config = require('./config.json');
 
-
 /**
  * Firebase: initialize admin API
  */
@@ -14,15 +13,18 @@ admin.initializeApp({
   databaseURL: config['databaseURL']
 });
 
+const auth = admin.auth();
+const firestore = admin.firestore();
+
 const settings = {timestampsInSnapshots: true};
-admin.firestore().settings(settings);
+firestore.settings(settings);
 
 /**
  * CLI: Create Users
  */
 program
-  .command('create <entity>')
-  .description('Create specified <entity> in firebase database')
+  .command('create <object>')
+  .description('Create specified <object> in firebase database')
   .action(async function(entity, args) {
     hasCmd = true;
 
@@ -44,7 +46,6 @@ program
     hasCmd = true;
 
     await clear();
-    console.log('Done clear');
     process.exit(0);
   });
 
@@ -64,9 +65,9 @@ async function createUser(user) {
   var userRecord;
   var errCode;
 
-  // Remove user record if user already exists
+  // remove user record if user already exists
   try {
-    userRecord = await admin.auth().getUserByEmail(user['email']);
+    userRecord = await auth.getUserByEmail(user['email']);
   } catch (err) {
     errCode = err['code'];
   }
@@ -74,28 +75,28 @@ async function createUser(user) {
   if (errCode != 'auth/user-not-found') {
     console.log('Warning: user already exists');
     console.log(userRecord['uid']);
-    removeUser(userRecord);
+    deleteUser(userRecord);
   }
   console.log('');
 
-  // Create user
+  // create user
   try {
-    userRecord = await admin.auth().createUser({
+    // add user to firebase.authentication
+    userRecord = await auth.createUser({
       email: user['email'],
       emailVerified: false,
       password: user['password'],
       displayName: user['displayName'],
       disable: false
     });
+
+    // add user roles to firebase.firestore
+    await firestore.collection('roles').doc(userRecord['uid']).set({
+      roles: user['roles']
+    });
   } catch (err) {
     console.log(err);
   }
-
-  console.log(userRecord);
-  // Create user role
-  var dataRecord = {
-    roles: user['roles']
-  };
 }
 
 /**
@@ -103,7 +104,7 @@ async function createUser(user) {
  */
 async function deleteUser(user) {
   try {
-    await admin.auth().deleteUser(user['uid']);
+    await auth.deleteUser(user['uid']);
   } catch (err) {
     console.log(err);
   }
@@ -126,7 +127,7 @@ async function clear() {
   try {
     // get list of all users
     do {
-      result = await admin.auth().listUsers(usersPerPage, nextPageToken);
+      result = await auth.listUsers(usersPerPage, nextPageToken);
       result.users.forEach(userRecord => {
         usersIds.push(userRecord.uid)
       });
@@ -148,7 +149,7 @@ async function clear() {
     }
 
     // get list of all documents
-    var collectionRef = admin.firestore().collection('users');
+    var collectionRef = firestore.collection('users');
     snapshot = await collectionRef.get();
     for (let doc of snapshot.docs) {
       docsIds.push(doc.id);
@@ -158,7 +159,7 @@ async function clear() {
     for (let docId of docsIds) {
       await (async () => {
         await pauseFor(firebaseDelay);
-        await admin.firestore().collection('users').doc(docId).delete();
+        await firestore.collection('users').doc(docId).delete();
         console.log(`Document Id: ${docId}`);
       })();
     }

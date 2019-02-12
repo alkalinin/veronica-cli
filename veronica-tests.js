@@ -1,3 +1,4 @@
+const fs = require('fs');
 const firebase = require('firebase');
 
 const config = require('./config.json');
@@ -118,6 +119,20 @@ var readDocumentsTest02 = async () => {
   console.log('');
 }
 
+var readDocumentsTest03 = async () => {
+  console.log('  03 Authenticard user with \'admin\' role can read list of all document');
+
+  var passed = false;
+
+  // find user with admin rights
+  var json = JSON.parse(fs.readFileSync('../veronica-keys/veronica-roma-firebase-users.json'))
+  var users = json['users']
+  for (var user of users) {
+    console.log(user);
+  }
+  process.exit(0);
+}
+
 /**
  * Execute all tests set
  */
@@ -129,6 +144,7 @@ var readDocumentsTest02 = async () => {
   console.log('TEST: Read Documents');
   await readDocumentsTest01();
   await readDocumentsTest02();
+  await readDocumentsTest03();
 
   process.exit(0);
 })();
