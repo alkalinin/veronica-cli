@@ -125,12 +125,36 @@ var readDocumentsTest03 = async () => {
   var passed = false;
 
   // find user with admin rights
-  var json = JSON.parse(fs.readFileSync('../veronica-keys/veronica-roma-firebase-users.json'))
-  var users = json['users']
+  var json = JSON.parse(fs.readFileSync('../veronica-keys/veronica-roma-firebase-users.json'));
+  var users = json['users'];
+  var admin;
   for (var user of users) {
-    console.log(user);
+    if (user.roles.includes('admin')) {
+      admin = user;
+      break;
+    }
   }
-  process.exit(0);
+
+  if (! admin) {
+    console.log('  FAILED');
+    return;
+  }
+
+  // test read data
+  try {
+    userRecord = await auth.signInWithEmailAndPassword(admin.email, admin.password);
+
+    console.log(userRecord.user.uid);
+
+    var collectionRef = firestore.collection('users');
+    var snapshot = await collectionRef.get();
+
+    await auth.signOut();
+
+    passed = true;
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 /**

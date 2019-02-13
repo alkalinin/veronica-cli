@@ -111,7 +111,7 @@ async function deleteUser(user) {
 }
 
 /**
- * Firebase: cleare database
+ * Firebase: clear database
  */
 async function clear() {
   const usersPerPage = 25;
