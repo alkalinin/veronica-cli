@@ -91,7 +91,7 @@ async function createUser(user) {
     });
 
     // add user roles to firebase.firestore
-    await firestore.collection('roles').doc(userRecord['uid']).set({
+    await firestore.collection('users-roles').doc(userRecord['uid']).set({
       roles: user['roles']
     });
   } catch (err) {
@@ -119,7 +119,6 @@ async function clear() {
 
   var nextPageToken;
   var usersIds = [];
-  var docsIds = [];
 
   // delay function in order do not overload firebase quota
   const pauseFor = (delay) => new Promise(resolve => setTimeout(resolve, delay));
@@ -144,23 +143,38 @@ async function clear() {
       await (async () => {
         await pauseFor(firebaseDelay);
         await admin.auth().deleteUser(userId);
-        console.log(`User Id: ${userId}`);
+        console.log(`Remove user: ${userId}`);
       })();
     }
 
     // get list of all documents
-    var collectionRef = firestore.collection('users');
+    var collectionRef, snapshot;
+    var docs = [];
+
+    collectionRef = firestore.collection('users');
     snapshot = await collectionRef.get();
     for (let doc of snapshot.docs) {
-      docsIds.push(doc.id);
+      docs.push({
+        collection: 'users',
+        id: doc.id
+      });
+    }
+
+    collectionRef = firestore.collection('users-roles');
+    snapshot = await collectionRef.get();
+    for (let doc of snapshot.docs) {
+      docs.push({
+        collection: 'users-roles',
+        id: doc.id
+      });
     }
 
     // remove documents
-    for (let docId of docsIds) {
+    for (let doc of docs) {
       await (async () => {
         await pauseFor(firebaseDelay);
-        await firestore.collection('users').doc(docId).delete();
-        console.log(`Document Id: ${docId}`);
+        await firestore.collection(doc.collection).doc(doc.id).delete();
+        console.log(`Remove document: ${doc.collection}/${doc.id}`);
       })();
     }
   } catch (err) {

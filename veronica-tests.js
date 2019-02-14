@@ -12,10 +12,10 @@ const auth = firebase.auth();
 const firestore = firebase.firestore();
 
 /**
- * Create Documents Test Set
+ * Tests set for non-authenticated users
  */
-var createDocumentsTest01 = async () => {
-  console.log('  01 Non authenticated user cannot create document');
+var nonAuthUsersTest01 = async () => {
+  console.log('  01 Cannot create document');
 
   var passed = false;
 
@@ -38,8 +38,12 @@ var createDocumentsTest01 = async () => {
   console.log('');
 }
 
-var createDocumentsTest02 = async () => {
-  console.log('  02 Authenticated user can create document');
+
+/**
+ * Tests set for anonymous users
+ */
+var anonUsersTest01 = async () => {
+  console.log('  01 Can create document');
 
   var passed = false;
 
@@ -66,35 +70,8 @@ var createDocumentsTest02 = async () => {
   console.log('');
 }
 
-/**
- * Read Documents Test Set
- */
-var readDocumentsTest01 = async () => {
-  console.log('  01 Non authenticated user cannot read list of all document');
-
-  var passed = false;
-
-  try {
-    var collectionRef = firestore.collection('users');
-    var snapshot = await collectionRef.get();
-  }
-  catch (error) {
-    if (error.code === 'permission-denied') {
-      passed = true;
-    }
-  }
-
-  if (passed) {
-    console.log('  OK');
-  } else {
-    console.log('  FAILED');
-  }
-
-  console.log('');
-}
-
-var readDocumentsTest02 = async () => {
-  console.log('  02 Authenticated user cannot read list of all document');
+var anonUsersTest02 = async () => {
+  console.log('  02 Cannot read other documents');
 
   var passed = false;
 
@@ -103,6 +80,8 @@ var readDocumentsTest02 = async () => {
 
     var collectionRef = firestore.collection('users');
     var snapshot = await collectionRef.get();
+
+    await auth.signOut();
   }
   catch (error) {
     if (error.code === 'permission-denied') {
@@ -119,8 +98,41 @@ var readDocumentsTest02 = async () => {
   console.log('');
 }
 
-var readDocumentsTest03 = async () => {
-  console.log('  03 Authenticard user with \'admin\' role can read list of all document');
+var anonUsersTest03 = async () => {
+  console.log('  03 Cannot change roles');
+
+  var passed = false;
+
+  try {
+    userRecord = await auth.signInAnonymously();
+
+    await firestore.collection('users-roles').doc(userRecord.user.uid).set({
+      roles: ["admin"]
+    });
+
+    await auth.signOut();
+  }
+  catch (error) {
+    if (error.code === 'permission-denied') {
+      passed = true;
+    }
+  }
+
+  if (passed) {
+    console.log('  OK');
+  } else {
+    console.log('  FAILED');
+  }
+
+  console.log('');
+}
+
+/**
+ * Tests set for admin users
+ */
+
+var adminUsersTest01 = async () => {
+  console.log('  01 Can read all documents');
 
   var passed = false;
 
@@ -144,8 +156,6 @@ var readDocumentsTest03 = async () => {
   try {
     userRecord = await auth.signInWithEmailAndPassword(admin.email, admin.password);
 
-    console.log(userRecord.user.uid);
-
     var collectionRef = firestore.collection('users');
     var snapshot = await collectionRef.get();
 
@@ -153,7 +163,13 @@ var readDocumentsTest03 = async () => {
 
     passed = true;
   } catch (error) {
-    console.log(error);
+    passed = false;
+  }
+
+  if (passed) {
+    console.log('  OK');
+  } else {
+    console.log('  FAILED');
   }
 }
 
@@ -161,14 +177,16 @@ var readDocumentsTest03 = async () => {
  * Execute all tests set
  */
 (async () => {
-  console.log('TEST: Create Documents');
-  await createDocumentsTest01();
-  await createDocumentsTest02();
+  console.log('TEST: Non-authenticated users');
+  await nonAuthUsersTest01();
 
-  console.log('TEST: Read Documents');
-  await readDocumentsTest01();
-  await readDocumentsTest02();
-  await readDocumentsTest03();
+  console.log('TEST: Anonymous users');
+  await anonUsersTest01();
+  await anonUsersTest02();
+  await anonUsersTest03();
+
+  console.log('TEST: Admin users');
+  await adminUsersTest01();
 
   process.exit(0);
 })();
