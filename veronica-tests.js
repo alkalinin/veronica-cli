@@ -58,7 +58,7 @@ var anonUsersTest01 = async () => {
 
     passed = true;
   } catch (error) {
-    console.log(error);
+    //console.log(error);
   }
 
   if (passed) {
@@ -82,8 +82,7 @@ var anonUsersTest02 = async () => {
     var snapshot = await collectionRef.get();
 
     await auth.signOut();
-  }
-  catch (error) {
+  } catch (error) {
     if (error.code === 'permission-denied') {
       passed = true;
     }
@@ -99,7 +98,34 @@ var anonUsersTest02 = async () => {
 }
 
 var anonUsersTest03 = async () => {
-  console.log('  03 Cannot change roles');
+  console.log('  03 Can read own roles and no any role been assigned')
+
+  var passed = false;
+
+  try {
+    userRecord = await auth.signInAnonymously();
+
+    docRef = firestore.collection('users-roles').doc(userRecord.user.uid);
+    doc = await docRef.get();
+    if (! doc.exists) {
+      passed = true;
+    }
+
+    await auth.signOut()
+  } catch (error) {
+  }
+
+  if (passed) {
+    console.log('  OK');
+  } else {
+    console.log('  FAILED');
+  }
+
+  console.log('');
+}
+
+var anonUsersTest04 = async () => {
+  console.log('  04 Cannot change roles');
 
   var passed = false;
 
@@ -111,8 +137,7 @@ var anonUsersTest03 = async () => {
     });
 
     await auth.signOut();
-  }
-  catch (error) {
+  } catch (error) {
     if (error.code === 'permission-denied') {
       passed = true;
     }
@@ -131,15 +156,11 @@ var anonUsersTest03 = async () => {
  * Tests set for admin users
  */
 
-var adminUsersTest01 = async () => {
-  console.log('  01 Can read all documents');
-
-  var passed = false;
-
-  // find user with admin rights
+var getAdminUser = async () => {
   var json = JSON.parse(fs.readFileSync('../veronica-keys/veronica-roma-firebase-users.json'));
   var users = json['users'];
   var admin;
+
   for (var user of users) {
     if (user.roles.includes('admin')) {
       admin = user;
@@ -147,6 +168,15 @@ var adminUsersTest01 = async () => {
     }
   }
 
+  return admin
+}
+
+var adminUsersTest01 = async () => {
+  console.log('  01 Can read all documents');
+
+  var passed = false;
+
+  var admin = await getAdminUser();
   if (! admin) {
     console.log('  FAILED');
     return;
@@ -171,6 +201,42 @@ var adminUsersTest01 = async () => {
   } else {
     console.log('  FAILED');
   }
+
+  console.log('');
+}
+
+var adminUsersTest02 = async () => {
+  console.log('  02 Can read own role')
+
+  var passed = false;
+
+  var admin = await getAdminUser();
+  if (! admin) {
+    console.log('  FAILED');
+    return;
+  }
+
+  try {
+    userRecord = await auth.signInWithEmailAndPassword(admin.email, admin.password);
+
+    docRef = firestore.collection('users-roles').doc(userRecord.user.uid);
+    doc = await docRef.get();
+
+    if (doc.exists && doc.data().roles.includes('admin')) {
+      passed = true;
+    }
+
+    await auth.signOut()
+  } catch (error) {
+  }
+
+  if (passed) {
+    console.log('  OK');
+  } else {
+    console.log('  FAILED');
+  }
+
+  console.log('');
 }
 
 /**
@@ -184,9 +250,11 @@ var adminUsersTest01 = async () => {
   await anonUsersTest01();
   await anonUsersTest02();
   await anonUsersTest03();
+  await anonUsersTest04();
 
   console.log('TEST: Admin users');
   await adminUsersTest01();
+  await adminUsersTest02();
 
   process.exit(0);
 })();
